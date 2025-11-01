@@ -1,0 +1,482 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Longevity Dashboard</title>
+    <!-- Load Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Load Chart.js for gauges -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels"></script>
+    <!-- Use Inter font -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f3f4f6;
+            color: #111827;
+        }
+
+        /* Custom styles for gauge text */
+        .gauge-text {
+            position: absolute;
+            top: 60%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            text-align: center;
+            font-weight: 600;
+        }
+
+        .gauge-percentile {
+            font-size: 2.5rem;
+            line-height: 1.1;
+            color: #111827;
+        }
+
+        .gauge-label {
+            font-size: 0.875rem;
+            color: #6b7280;
+        }
+    </style>
+</head>
+
+<body class="flex items-center justify-center min-h-screen p-4">
+
+    <div class="w-full max-w-4xl bg-white shadow-xl rounded-2xl p-6 md:p-10">
+
+        <!-- Header -->
+        <div class="text-center border-b border-gray-200 pb-6 mb-6">
+            <h1 class="text-3xl md:text-4xl font-bold text-gray-800">Longevity Dashboard</h1>
+            <p class="text-lg text-gray-600 mt-2">Grip Strength & VO2 Max Percentiles</p>
+            <p class="text-sm text-gray-500 mt-2 max-w-2xl mx-auto">Based on the work of Dr. Peter Attia, these metrics are
+                strong indicators of healthspan and longevity. The goal is to be in the
+                <strong>Top 10% (90th Percentile)</strong> for your age and gender.
+            </p>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+
+            <!-- Inputs Panel -->
+            <div class="lg:col-span-1 space-y-4">
+                <h2 class="text-xl font-semibold text-gray-700">1. Enter Your Data</h2>
+                
+                <!-- Gender Input -->
+                <div>
+                    <label for="gender" class="block text-sm font-medium text-gray-700">Gender</label>
+                    <select id="gender" name="gender"
+                        class="mt-1 block w-full py-2 px-3 border border-gray-300 bg-white rounded-lg shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm">
+                        <option value="male">Male</option>
+                        <option value="female">Female</option>
+                    </select>
+                </div>
+
+                <!-- Age Input -->
+                <div>
+                    <label for="age" class="block text-sm font-medium text-gray-700">Age</label>
+                    <input type="number" name="age" id="age" value="45"
+                        class="mt-1 block w-full py-2 px-3 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+                        placeholder="Enter your age">
+                </div>
+
+                <!-- Grip Strength Input -->
+                <div>
+                    <label for="grip" class="block text-sm font-medium text-gray-700">Grip Strength (kg)</label>
+                    <input type="number" name="grip" id="grip" value="42"
+                        class="mt-1 block w-full py-2 px-3 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+                        placeholder="e.g., 42">
+                </div>
+
+                <!-- VO2 Max Input -->
+                <div>
+                    <label for="vo2" class="block text-sm font-medium text-gray-700">VO2 Max (ml/kg/min)</label>
+                    <input type="number" name="vo2" id="vo2" value="38"
+                        class="mt-1 block w-full py-2 px-3 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+                        placeholder="e.g., 38">
+                </div>
+
+                <!-- Calculate Button -->
+                <button id="calculate-btn"
+                    class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 px-4 rounded-lg shadow-md transition duration-300 ease-in-out transform hover:-translate-y-0.5">
+                    Calculate Percentiles
+                </button>
+                
+                <!-- Error Message Area -->
+                <div id="error-message" class="text-red-600 text-sm font-medium hidden"></div>
+            </div>
+
+            <!-- Results Panel -->
+            <div class="lg:col-span-2">
+                <h2 class="text-xl font-semibold text-gray-700 mb-4 text-center">2. Your Results</h2>
+                
+                <!-- Initial Message -->
+                <div id="results-placeholder" class_="flex items-center justify-center h-full text-gray-500">
+                    Enter your data and click "Calculate" to see your percentiles.
+                </div>
+
+                <!-- Results Gauges -->
+                <div id="results-gauges" class="hidden grid grid-cols-1 sm:grid-cols-2 gap-6">
+                    
+                    <!-- Grip Strength Gauge -->
+                    <div class="text-center p-4">
+                        <h3 class="text-lg font-semibold text-gray-700">Grip Strength</h3>
+                        <div class="relative w-full max-w-xs mx-auto">
+                            <canvas id="gripGauge"></canvas>
+                            <div class="gauge-text">
+                                <div id="grip-percentile" class="gauge-percentile">0</div>
+                                <div class="gauge-label">Percentile</div>
+                            </div>
+                        </div>
+                        <div id="grip-summary" class="mt-2 text-sm text-gray-600"></div>
+                    </div>
+
+                    <!-- VO2 Max Gauge -->
+                    <div class="text-center p-4">
+                        <h3 class="text-lg font-semibold text-gray-700">VO2 Max</h3>
+                        <div class="relative w-full max-w-xs mx-auto">
+                            <canvas id="vo2Gauge"></canvas>
+                            <div class="gauge-text">
+                                <div id="vo2-percentile" class="gauge-percentile">0</div>
+                                <div class="gauge-label">Percentile</div>
+                            </div>
+                        </div>
+                        <div id="vo2-summary" class="mt-2 text-sm text-gray-600"></div>
+                    </div>
+                </div>
+
+                <!-- Goal Section -->
+                <div id="goal-section" class="hidden mt-6 p-4 bg-gray-50 rounded-lg border border-gray-200">
+                    <h3 class="text-lg font-semibold text-gray-800">Your Longevity Goal (90th Percentile)</h3>
+                    <p class="text-sm text-gray-600">To reach the "Elite" (Top 10%) category for your demographic, aim for these values:</p>
+                    <ul class="list-disc list-inside mt-2 space-y-1">
+                        <li><strong>Grip Strength:</strong> <span id="grip-goal" class="font-medium">...</span> kg</li>
+                        <li><strong>VO2 Max:</strong> <span id="vo2-goal" class="font-medium">...</span> ml/kg/min</li>
+                    </ul>
+                </div>
+
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // --- DATA ---
+        // Normative data for VO2 Max (ml/kg/min) by age and gender.
+        // Based on Garmin/ACSM data, mapping percentiles to values.
+        // Format: { 40: value, 60: value, 80: value, 95: value }
+        const vo2MaxData = {
+            female: {
+                "20-29": { 40: 36.1, 60: 39.5, 80: 43.9, 95: 49.6 },
+                "30-39": { 40: 34.4, 60: 37.8, 80: 42.4, 95: 47.4 },
+                "40-49": { 40: 33.0, 60: 36.3, 80: 39.7, 95: 45.3 },
+                "50-59": { 40: 30.1, 60: 33.0, 80: 36.7, 95: 41.1 },
+                "60-69": { 40: 27.5, 60: 30.0, 80: 33.0, 95: 37.8 },
+                "70-79": { 40: 25.9, 60: 28.1, 80: 30.9, 95: 36.7 },
+            },
+            male: {
+                "20-29": { 40: 43.0, 60: 46.4, 80: 51.5, 95: 55.9 },
+                "30-39": { 40: 40.9, 60: 44.2, 80: 49.4, 95: 54.0 },
+                "40-49": { 40: 38.2, 60: 42.0, 80: 47.3, 95: 51.6 },
+                "50-59": { 40: 35.5, 60: 39.1, 80: 44.1, 95: 48.0 },
+                "60-69": { 40: 32.2, 60: 35.4, 80: 40.3, 95: 44.2 },
+                "70-79": { 40: 29.4, 60: 32.3, 80: 36.5, 95: 40.9 },
+            }
+        };
+
+        // Normative data for Grip Strength (kg) - Right Hand
+        // Based on Shirley Ryan AbilityLab data (Mean, Standard Deviation)
+        // Format: { mean: value, sd: value }
+        const gripStrengthData = {
+            female: {
+                "20-29": { mean: 30, sd: 7.0 },
+                "30-39": { mean: 31, sd: 6.4 },
+                "40-49": { mean: 29, sd: 5.7 },
+                "50-59": { mean: 28, sd: 6.3 },
+                "60-69": { mean: 24, sd: 5.3 },
+                "70-79": { mean: 20, sd: 5.8 }, // Data for 70+
+            },
+            male: {
+                "20-29": { mean: 47, sd: 9.5 },
+                "30-39": { mean: 47, sd: 9.7 },
+                "40-49": { mean: 47, sd: 9.5 },
+                "50-59": { mean: 45, sd: 8.4 },
+                "60-69": { mean: 40, sd: 8.3 },
+                "70-79": { mean: 33, sd: 7.8 }, // Data for 70+
+            }
+        };
+
+        // --- GAUGE CHART GLOBALS ---
+        let gripGaugeChart, vo2GaugeChart;
+        Chart.register(ChartDataLabels);
+
+        // --- EVENT LISTENER ---
+        document.getElementById("calculate-btn").addEventListener("click", calculateAndDisplay);
+
+        // --- HELPER FUNCTIONS ---
+
+        /**
+         * Gets the correct age bracket string from a given age.
+         */
+        function getAgeBracket(age) {
+            if (age < 20) return "20-29"; // Default to youngest bracket if under 20
+            if (age >= 20 && age <= 29) return "20-29";
+            if (age >= 30 && age <= 39) return "30-39";
+            if (age >= 40 && age <= 49) return "40-49";
+            if (age >= 50 && age <= 59) return "50-59";
+            if (age >= 60 && age <= 69) return "60-69";
+            if (age >= 70) return "70-79"; // Use 70-79 as the oldest bracket
+            return null;
+        }
+        
+        /**
+         * Validates all user inputs.
+         */
+        function validateInputs(age, grip, vo2) {
+            const errorMessage = document.getElementById("error-message");
+            if (!age || !grip || !vo2) {
+                errorMessage.textContent = "Please fill in all fields.";
+                errorMessage.classList.remove("hidden");
+                return false;
+            }
+            if (age < 18 || age > 100) {
+                errorMessage.textContent = "Please enter an age between 18 and 100.";
+                errorMessage.classList.remove("hidden");
+                return false;
+            }
+             if (grip < 0 || vo2 < 0) {
+                errorMessage.textContent = "Values cannot be negative.";
+                errorMessage.classList.remove("hidden");
+                return false;
+            }
+            errorMessage.classList.add("hidden");
+            return true;
+        }
+
+        /**
+         * Calculates percentile from Z-score.
+         * Uses the error function approximation.
+         */
+        function getPercentileFromZ(z) {
+            // erf(z/sqrt(2))
+            const erf = (x) => {
+                const a1 = 0.254829592;
+                const a2 = -0.284496736;
+                const a3 = 1.421413741;
+                const a4 = -1.453152027;
+                const a5 = 1.061405429;
+                const p = 0.3275911;
+
+                const sign = (x >= 0) ? 1 : -1;
+                x = Math.abs(x);
+
+                const t = 1.0 / (1.0 + p * x);
+                const y = 1.0 - (((((a5 * t + a4) * t) + a3) * t + a2) * t + a1) * t * Math.exp(-x * x);
+                return sign * y;
+            };
+
+            const percentile = (1.0 + erf(z / Math.sqrt(2))) / 2.0;
+            return Math.round(percentile * 100);
+        }
+
+        /**
+         * Calculates percentile from Mean and Standard Deviation (SD).
+         */
+        function calculateGripPercentile(grip, gender, ageBracket) {
+            const data = gripStrengthData[gender][ageBracket];
+            if (!data) return 0;
+
+            const z = (grip - data.mean) / data.sd;
+            return getPercentileFromZ(z);
+        }
+
+        /**
+         * Calculates the 90th percentile value for grip strength.
+         * Z-score for 90th percentile is approx 1.282
+         */
+        function getGripGoal(gender, ageBracket) {
+             const data = gripStrengthData[gender][ageBracket];
+             if (!data) return 0;
+             const z = 1.282; // 90th percentile
+             return (z * data.sd + data.mean).toFixed(1);
+        }
+
+        /**
+         * Linearly interpolates VO2 Max percentile.
+         */
+        function calculateVo2Percentile(vo2, gender, ageBracket) {
+            const data = vo2MaxData[gender][ageBracket];
+            if (!data) return 0;
+
+            const percentiles = Object.keys(data).map(Number); // [40, 60, 80, 95]
+            const values = Object.values(data); // [36.1, 39.5, 43.9, 49.6]
+
+            if (vo2 < values[0]) return Math.round((vo2 / values[0]) * 40); // Below 40th
+            if (vo2 >= values[values.length - 1]) return 99; // Above 95th
+
+            for (let i = 0; i < values.length - 1; i++) {
+                if (vo2 >= values[i] && vo2 < values[i + 1]) {
+                    // Linear interpolation: y = y1 + (x - x1) * (y2 - y1) / (x2 - x1)
+                    const p1 = percentiles[i];
+                    const v1 = values[i];
+                    const p2 = percentiles[i+1];
+                    const v2 = values[i+1];
+                    
+                    const percentile = p1 + (vo2 - v1) * (p2 - p1) / (v2 - v1);
+                    return Math.round(percentile);
+                }
+            }
+            return 99; // Default for max
+        }
+        
+         /**
+         * Interpolates to find the 90th percentile value for VO2 Max.
+         */
+        function getVo2Goal(gender, ageBracket) {
+             const data = vo2MaxData[gender][ageBracket];
+             if (!data) return 0;
+             
+             const p80 = data[80];
+             const p95 = data[95];
+             
+             // Interpolate: v = v1 + (p - p1) * (v2 - v1) / (p2 - p1)
+             const v90 = p80 + (90 - 80) * (p95 - p80) / (95 - 80);
+             return v90.toFixed(1);
+        }
+
+        /**
+         * Creates or updates a gauge chart.
+         */
+        function createOrUpdateGauge(chartInstance, ctxId, percentile) {
+            const goalPercentile = 90;
+            const remaining = 100 - percentile;
+            
+            // Determine colors
+            let mainColor = '#fca5a5'; // Red (Poor)
+            if (percentile >= goalPercentile) mainColor = '#4ade80'; // Green (Elite)
+            else if (percentile >= 75) mainColor = '#a3e635'; // Lime (High)
+            else if (percentile >= 50) mainColor = '#60a5fa'; // Blue (Good)
+            else if (percentile >= 25) mainColor = '#fcd34d'; // Yellow (Fair)
+
+            const data = {
+                datasets: [{
+                    data: [percentile, remaining],
+                    backgroundColor: [mainColor, '#e5e7eb'],
+                    borderWidth: 0,
+                    circumference: 180,
+                    rotation: 270,
+                }]
+            };
+
+            const options = {
+                responsive: true,
+                maintainAspectRatio: true,
+                aspectRatio: 2,
+                cutout: '75%',
+                plugins: {
+                    tooltip: { enabled: false },
+                    datalabels: {
+                        formatter: (value, context) => {
+                             if (context.dataIndex === 0) return percentile + '%';
+                             return '';
+                        },
+                        color: mainColor,
+                        font: {
+                            size: 1, // Hidden, we use the text overlay
+                        }
+                    }
+                },
+                events: [] // Disable all events
+            };
+
+            if (chartInstance) {
+                // Update existing chart
+                chartInstance.data.datasets[0].data = [percentile, remaining];
+                chartInstance.data.datasets[0].backgroundColor[0] = mainColor;
+                chartInstance.update();
+            } else {
+                // Create new chart
+                return new Chart(document.getElementById(ctxId).getContext('2d'), {
+                    type: 'doughnut',
+                    data: data,
+                    options: options,
+                });
+            }
+        }
+        
+        /**
+         * Generates a text summary for the percentile.
+         */
+        function getPercentileSummary(percentile) {
+            if (percentile >= 95) return "Elite (Top 5%). Excellent!";
+            if (percentile >= 90) return "Elite (Top 10%). Great job!";
+            if (percentile >= 75) return "High (Top 25%). Very good.";
+            if (percentile >= 50) return "Above Average (Top 50%). Good.";
+            if (percentile >= 25) return "Below Average (Bottom 50%).";
+            return "Low (Bottom 25%).";
+        }
+
+        // --- MAIN FUNCTION ---
+
+        function calculateAndDisplay() {
+            // 1. Get Inputs
+            const gender = document.getElementById("gender").value;
+            const age = parseInt(document.getElementById("age").value);
+            const grip = parseFloat(document.getElementById("grip").value);
+            const vo2 = parseFloat(document.getElementById("vo2").value);
+            
+            // 2. Validate
+            if (!validateInputs(age, grip, vo2)) {
+                return;
+            }
+
+            // 3. Get Age Bracket
+            const ageBracket = getAgeBracket(age);
+            if (!ageBracket) {
+                 document.getElementById("error-message").textContent = "Age is out of data range (20-79).";
+                 document.getElementById("error-message").classList.remove("hidden");
+                return;
+            }
+
+            // 4. Calculate Percentiles
+            const gripPercentile = calculateGripPercentile(grip, gender, ageBracket);
+            const vo2Percentile = calculateVo2Percentile(vo2, gender, ageBracket);
+            
+            // 5. Calculate Goals
+            const gripGoalValue = getGripGoal(gender, ageBracket);
+            const vo2GoalValue = getVo2Goal(gender, ageBracket);
+
+            // 6. Display Results
+            // Hide placeholder, show results
+            document.getElementById("results-placeholder").classList.add("hidden");
+            document.getElementById("results-gauges").classList.remove("hidden");
+            document.getElementById("goal-section").classList.remove("hidden");
+
+            // Update gauges
+            gripGaugeChart = createOrUpdateGauge(gripGaugeChart, 'gripGauge', gripPercentile);
+            vo2GaugeChart = createOrUpdateGauge(vo2GaugeChart, 'vo2Gauge', vo2Percentile);
+
+            // Update text overlays
+            document.getElementById("grip-percentile").textContent = gripPercentile;
+            document.getElementById("vo2-percentile").textContent = vo2Percentile;
+            
+            // Update summaries
+            document.getElementById("grip-summary").textContent = getPercentileSummary(gripPercentile);
+            document.getElementById("vo2-summary").textContent = getPercentileSummary(vo2Percentile);
+            
+            // Update goal values
+            document.getElementById("grip-goal").textContent = gripGoalValue;
+            document.getElementById("vo2-goal").textContent = vo2GoalValue;
+        }
+        
+        // Initial call on page load to set default values
+        document.addEventListener('DOMContentLoaded', (event) => {
+            calculateAndDisplay();
+        });
+
+    </script>
+
+</body>
+
+</html>
